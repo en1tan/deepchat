@@ -1,16 +1,19 @@
 import React, {useRef, useState} from 'react';
 import './App.css';
 
-
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 import 'firebase/auth';
 
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useCollectionData } from "react-firebase-hooks/firestore";
+import Chat from './Chat';
+const dotnev = require('dotenv');
+
+dotnev.config();
 
 firebase.initializeApp({
-  apiKey: process.env.CREATE_REACT_APP_API_KEY,
+  apiKey: "AIzaSyDvT8_6QvgM3Tnj80d-sDCX1V2Y56xyoqU",
     authDomain: "deep-chat-d317d.firebaseapp.com",
     databaseURL: "https://deep-chat-d317d.firebaseio.com",
     projectId: "deep-chat-d317d",
@@ -29,10 +32,13 @@ function App() {
   return (
     <div className="App">
       <header>
-        {(signOut)}
+      <SignOut />
       </header>
       <section>
         {user ? <ChatRoom /> : <SignIn />}
+      </section>
+      <section>
+        <Chat />
       </section>
     </div>
   );
@@ -45,52 +51,58 @@ function SignIn() {
   }
 
   return (
-    <button onClick={signInWithGoogle}>Sig in with Google</button>
+    <button onClick={signInWithGoogle}>Connect with Google</button>
   )
 }
 
-function signOut() {
+function SignOut() {
   return auth.currentUser && (
     <button onClick={() => auth.signOut()}>Sign Out</button>
   )
 }
 
 function ChatRoom() {
+  const dummy = useRef();
+
   const messagesRef = firestore.collection('messages');
   const query = messagesRef.orderBy('createdAt').limit(25);
 
   const [messages] = useCollectionData(query, { idField: 'id' });
   const [formValue, setFormValue] = useState('');
-  const dummy = useRef()
 
   const sendMessage = async (e) => {
     e.preventDefault();
 
-    const { uid, photoURL } = auth.currentUser;
+    const { uid, photoURL, displayName, email } = auth.currentUser;
     await messagesRef.add({
       text: formValue,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       uid,
-      photoURL
+      photoURL,
+      email
     });
-    setFormValue('')
+    setFormValue('');
+
+    dummy.current.scrollIntoView({ behavior: 'smooth' });
   }
 
 
   return (
     <>
       <main>
-
-      <div>
         {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
-      </div>
 
       <div ref={dummy}></div>
       </main>
 
       <form onSubmit={sendMessage}>
         <input value={formValue} onChange={(e) => setFormValue(e.target.value)} />
-        <button>Send</button>
+        {formValue === "" ? (
+          (<button disabled><span role="img" aria-label="send">🕊️</span></button>)
+        )
+          :
+          <button color="yellow"><span role="img" aria-label="send">🕊️</span></button>
+      }
       </form>
       </>
   )
@@ -98,14 +110,14 @@ function ChatRoom() {
 }
 
 function ChatMessage(props) {
-  const { text, uid, photoURL } = props.message
+  const { text, uid, photoURL, email } = props.message
 
   const messageClass = uid === auth.currentUser.uid ? 'sent' : 'recieved';
 
   return (
     <div className={`message ${messageClass}`}>
-      <img src={photoURL} />
-      <p>{text}</p>
+      <img src={photoURL} alt={email} />
+      <p>{email}<br />{text}</p>
     </div>
   )
 }
